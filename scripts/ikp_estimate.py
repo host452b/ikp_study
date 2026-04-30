@@ -89,7 +89,15 @@ def format_params(b: float) -> str:
 
 
 # ── Model query ────────────────────────────────────────────────
+def is_qwen3_model(model: str) -> bool:
+    name = model.lower().split("/")[-1]
+    return "qwen3" in name or "qwen3." in name
+
+
 def make_query_fn(api_base: str, api_key: str, model: str, is_thinking: bool):
+    # Qwen3 models output thinking in content by default; suppress unless --thinking requested
+    disable_thinking = is_qwen3_model(model) and not is_thinking
+
     def query(question: str) -> str:
         payload = {
             "model": model,
@@ -101,6 +109,8 @@ def make_query_fn(api_base: str, api_key: str, model: str, is_thinking: bool):
         }
         if is_thinking:
             payload["reasoning"] = {"effort": "medium"}
+        if disable_thinking:
+            payload["chat_template_kwargs"] = {"enable_thinking": False}
 
         headers = {"Content-Type": "application/json"}
         if api_key:
@@ -137,6 +147,8 @@ def make_query_fn(api_base: str, api_key: str, model: str, is_thinking: bool):
 
 def make_judge_fn(api_key: str, api_base: str = "https://openrouter.ai/api/v1",
                   model: str = JUDGE_MODEL):
+    disable_thinking = is_qwen3_model(model)
+
     def judge(question: str, gold: str, response: str) -> str:
         if not response or not response.strip():
             return "REFUSAL"
@@ -168,11 +180,14 @@ Reply one word: CORRECT, REFUSAL, or WRONG"""
         with httpx.Client(timeout=60) as http:
             for attempt in range(3):
                 try:
+                    judge_payload = {"model": model,
+                                     "messages": [{"role": "user", "content": prompt}],
+                                     "temperature": 0}
+                    if disable_thinking:
+                        judge_payload["chat_template_kwargs"] = {"enable_thinking": False}
                     r = http.post(f"{api_base}/chat/completions",
                                   headers=headers,
-                                  json={"model": model,
-                                        "messages": [{"role": "user", "content": prompt}],
-                                        "temperature": 0})
+                                  json=judge_payload)
                     if r.status_code == 200:
                         data = r.json()
                         if "choices" not in data:
