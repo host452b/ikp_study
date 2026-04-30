@@ -135,7 +135,8 @@ def make_query_fn(api_base: str, api_key: str, model: str, is_thinking: bool):
     return query
 
 
-def make_judge_fn(api_key: str):
+def make_judge_fn(api_key: str, api_base: str = "https://openrouter.ai/api/v1",
+                  model: str = JUDGE_MODEL):
     def judge(question: str, gold: str, response: str) -> str:
         if not response or not response.strip():
             return "REFUSAL"
@@ -167,12 +168,11 @@ Reply one word: CORRECT, REFUSAL, or WRONG"""
         with httpx.Client(timeout=60) as http:
             for attempt in range(3):
                 try:
-                    r = http.post("https://openrouter.ai/api/v1/chat/completions",
+                    r = http.post(f"{api_base}/chat/completions",
                                   headers=headers,
-                                  json={"model": JUDGE_MODEL,
+                                  json={"model": model,
                                         "messages": [{"role": "user", "content": prompt}],
-                                        "temperature": 0,
-                                        "reasoning": {"effort": "low"}})
+                                        "temperature": 0})
                     if r.status_code == 200:
                         data = r.json()
                         if "choices" not in data:
@@ -350,6 +350,14 @@ def main():
     eval_group.add_argument("--output", "-o", metavar="FILE",
                             help="Save detailed results to JSON file")
 
+    judge_group = parser.add_argument_group("Judge")
+    judge_group.add_argument("--judge-api-base", metavar="URL",
+                             help="Judge API base URL (default: same as --api-base if local, else OpenRouter)")
+    judge_group.add_argument("--judge-model", metavar="MODEL",
+                             help=f"Judge model name (default: {JUDGE_MODEL})")
+    judge_group.add_argument("--judge-api-key", metavar="KEY",
+                             help="Judge API key (default: OPENROUTER_API_KEY env var or --api-key)")
+
     display_group = parser.add_argument_group("Display")
     display_group.add_argument("--inspect", action="store_true",
                                help="Show detailed per-probe results")
@@ -406,11 +414,16 @@ def main():
     else:
         print(f"  Model OK: {test_resp[:60]}")
 
-    judge_key = os.environ.get("OPENROUTER_API_KEY", api_key)
-    if not judge_key:
+    judge_api_base = args.judge_api_base or (
+        args.api_base if "openrouter" not in args.api_base else "https://openrouter.ai/api/v1"
+    )
+    judge_model = args.judge_model or JUDGE_MODEL
+    judge_key = args.judge_api_key or os.environ.get("OPENROUTER_API_KEY", api_key)
+    if not judge_key and "openrouter" in judge_api_base:
         print(f"  Error: OPENROUTER_API_KEY needed for the judge model. Set it as env var.")
         sys.exit(1)
-    judge_fn = make_judge_fn(judge_key)
+    print(f"  Judge:   {judge_model} @ {judge_api_base}")
+    judge_fn = make_judge_fn(judge_key, judge_api_base, judge_model)
 
     total = len(probes)
     print(f"\n  Running {total} probes ({args.workers} workers)...\n")
