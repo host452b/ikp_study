@@ -72,6 +72,55 @@ FAMILIES = {
         "base":     "Kimi-VL-A3B",
         "variants": {"base": "Kimi-VL-A3B"},
     },
+    # ── Batch 2 ──
+    "Qwen3-32B": {
+        "base":     "Qwen3-32B",
+        "variants": {
+            "BF16 (base)": "Qwen3-32B",
+            "FP8":         "Qwen3-32B-FP8",
+            "NVFP4":       "Qwen3-32B-NVFP4",
+        },
+    },
+    "Qwen3-14B": {
+        "base":     "Qwen3-14B",
+        "variants": {
+            "BF16 (base)": "Qwen3-14B",
+        },
+    },
+    "Qwen3-8B": {
+        "base":     "Qwen3-8B",
+        "variants": {
+            "BF16 (base)": "Qwen3-8B",
+        },
+    },
+    "Llama-3.3-70B": {
+        "base":     "Llama-3.3-70B",
+        "variants": {
+            "BF16 (base)": "Llama-3.3-70B",
+            "FP8":         "Llama-3.3-70B-FP8",
+        },
+    },
+    "Phi-4-reasoning": {
+        "base":     "Phi-4-reasoning",
+        "variants": {
+            "BF16 (base)":  "Phi-4-reasoning",
+            "FP8+":         "Phi-4-reasoning+-FP8",
+        },
+    },
+    "Nemotron-3-Super-120B (MoE)": {
+        "base":     "Nemotron-3-Super-120B-A12B-FP8",
+        "variants": {
+            "FP8 (base)": "Nemotron-3-Super-120B-A12B-FP8",
+        },
+    },
+    "InternLM3-8B": {
+        "base":     "InternLM3-8B",
+        "variants": {"base": "InternLM3-8B"},
+    },
+    "Gemma-3-27B": {
+        "base":     "Gemma-3-27B",
+        "variants": {"base": "Gemma-3-27B"},
+    },
 }
 
 TABLE_CSS = (
