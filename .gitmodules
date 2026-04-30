@@ -1,0 +1,3 @@
+[submodule "ikp"]
+	path = ikp
+	url = https://github.com/19PINE-AI/ikp.git
