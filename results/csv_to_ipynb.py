@@ -114,10 +114,10 @@ def td_score(val: str) -> str:
 
 def td_delta(delta: float) -> str:
     if abs(delta) < 0.05:
-        return f'<td class="delta-neu">±0</td>'
-    cls = "delta-pos" if delta > 0 else "delta-neg"
-    sign = "+" if delta > 0 else ""
-    return f'<td class="{cls}">{sign}{delta:.1f}</td>'
+        return '<td style="color:#888">±0</td>'
+    if delta > 0:
+        return f'<td style="color:#27ae60;font-weight:bold">+{delta:.1f}</td>'
+    return f'<td style="color:#e74c3c;font-weight:bold">{delta:.1f}</td>'
 
 
 # ── Table builders ─────────────────────────────────────────────
@@ -192,14 +192,14 @@ def quant_comparison_html(all_rows: list) -> str:
         base_row = by_name.get(base_name, {})
 
         # Family header row
-        n_cols = 2 + len(metric_cols) * 2  # quant + estimated + metrics + deltas
+        n_cols = 3 + len(metric_cols) * 2  # variant + vendor + estimated + metrics + deltas
         lines.append("<table>")
         lines.append(f'<tr class="family-header"><td colspan="{n_cols + 2}">'
                      f'▶ {family}</td></tr>')
 
         # Column headers
         lines.append("<thead><tr>")
-        lines.append("<th>Variant</th><th>Estimated</th>")
+        lines.append("<th>Variant</th><th>Vendor</th><th>Estimated</th>")
         for m in metric_cols:
             lines.append(f"<th>{m}</th>")
         for m in metric_cols:
@@ -214,12 +214,13 @@ def quant_comparison_html(all_rows: list) -> str:
             lines.append("<tr>")
             style = " style='font-weight:bold'" if is_base else ""
             lines.append(f'<td class="left"{style}>{label}</td>')
+            lines.append(f'<td class="left">{row.get("Vendor","")}</td>')
             lines.append(f'<td>{row.get("Estimated","")}</td>')
             for m in metric_cols:
                 lines.append(td_score(row.get(m, "0")))
             for m in metric_cols:
                 if is_base:
-                    lines.append('<td class="delta-neu">—</td>')
+                    lines.append('<td style="color:#888">—</td>')
                 else:
                     try:
                         d = float(row.get(m, 0)) - float(base_row.get(m, 0))
