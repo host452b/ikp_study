@@ -11,3 +11,4 @@ Qwen3.6-27B,Qwen,Qwen/Qwen3.6-27B,27B,36B,36.1,48.4,98,96,59,0,0,0,0
 Qwen3.6-27B-FP8,Qwen,Qwen/Qwen3.6-27B-FP8,27B,37B,36.4,48.0,98,98,58,0,0,0,0
 DeepSeek-V4-Flash,DeepSeek,deepseek-ai/DeepSeek-V4-Flash,?,152B,45.4,63.1,74,93,71,58,21,0,0
 Kimi-VL-A3B,Moonshot,moonshotai/Kimi-VL-A3B-Instruct,~3B,6B,24.4,37.0,92,79,0,0,0,0,0
+Qwen3-8B,Qwen,Qwen/Qwen3-8B,8B,10B,28.2,39.6,97,96,4,0,0,0,0
