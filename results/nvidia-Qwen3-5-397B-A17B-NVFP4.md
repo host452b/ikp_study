@@ -1,0 +1,72 @@
+# Benchmark Results: nvidia/Qwen3.5-397B-A17B-NVFP4
+
+**Date:** 2026-04-30  
+**Notes:** MoE 397B total / 17B active, NVFP4, tp=2  
+**Environment:** vLLM 0.20.0, 1× NVIDIA GPU (183 GB VRAM)  
+**Judge:** same local model (self-judge) via `--judge-api-base http://localhost:8000/v1`  
+**Probes:** IKP probe set v8, 1,400 probes × 7 tiers (T1–T7)
+
+> Note: self-judging introduces a circular bias — the model grades its own answers.
+> Results are directionally valid but would differ with an independent judge.
+
+---
+
+## How to Run
+
+```
+# 1. Start vLLM server
+vllm serve nvidia/Qwen3.5-397B-A17B-NVFP4 \
+    --port 8000 --tensor-parallel-size 2 \
+    --max-model-len 4096 --gpu-memory-utilization 0.9
+
+# 2. Run benchmark
+python scripts/ikp_estimate.py \
+    --api-base http://localhost:8000/v1 --api-key EMPTY \
+    --model nvidia/Qwen3.5-397B-A17B-NVFP4 \
+    --judge-api-base http://localhost:8000/v1 \
+    --judge-model nvidia/Qwen3.5-397B-A17B-NVFP4 \
+    --workers 8
+```
+
+> **Qwen3 note:** This script auto-disables internal thinking via
+> `chat_template_kwargs={"enable_thinking": false}` for Qwen3 models.
+> Without this, the model outputs multi-paragraph reasoning into `content`
+> and the judge classifies everything as WRONG. See Issues section below.
+
+---
+
+## Results
+
+| Metric | Value |
+|---|---|
+| Penalized accuracy | 0% |
+| Raw accuracy | 0% |
+| **Estimated parameters** | **SKIPPED** |
+| Effective tier | N/A |
+
+Effective tier: N/A — estimated SKIPPED.
+
+---
+
+## Issues and Fixes
+
+### Qwen3 default thinking mode
+
+**Problem:** Qwen3 models embed their chain-of-thought reasoning directly into
+the `content` field of the API response by default. During an early run on
+`Qwen/Qwen3.6-35B-A3B`, every probe returned 0 correct because the judge
+received a multi-paragraph thinking trace and could not extract a verdict.
+
+**Fix:** Added `is_qwen3_model()` in `scripts/ikp_estimate.py`. When the
+model name contains `qwen3` (case-insensitive) and `--thinking` is not set,
+both the query and judge payloads include:
+```json
+{"chat_template_kwargs": {"enable_thinking": false}}
+```
+This produces clean, one-line factual answers compatible with IKP scoring.
+
+### Self-judge bias
+
+Using the same model as both subject and judge means correct answers are more
+likely to be judged CORRECT (the model recognises its own phrasing). For
+production use, an independent judge model is recommended.
