@@ -13,3 +13,4 @@ DeepSeek-V4-Flash,DeepSeek,deepseek-ai/DeepSeek-V4-Flash,?,152B,45.4,63.1,74,93,
 Kimi-VL-A3B,Moonshot,moonshotai/Kimi-VL-A3B-Instruct,~3B,6B,24.4,37.0,92,79,0,0,0,0,0
 Qwen3-8B,Qwen,Qwen/Qwen3-8B,8B,10B,28.2,39.6,97,96,4,0,0,0,0
 Qwen3-14B,Qwen,Qwen/Qwen3-14B,14B,16B,31.1,42.1,95,90,32,0,0,0,0
+Qwen3-32B,Qwen,Qwen/Qwen3-32B,32B,15B,30.7,31.9,97,97,21,0,0,0,0
