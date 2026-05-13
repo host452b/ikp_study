@@ -1,24 +1,28 @@
-# IKP Estimation Toolkit — Agent path (`claude -p`)
+# IKP Estimation Toolkit — Agent path
 
-> **Two paths, two toolkits.** This file covers the **Agent path** —
-> `scripts/ikp_estimate_claude_cli.py`, which shells out to the local
-> `claude` CLI in headless mode (one `claude -p` invocation per probe).
+> **Two paths, two toolkits.** This file covers the **Agent path** — driving a
+> headless coding-agent CLI (one subprocess per probe) instead of an HTTP API.
+> Two CLIs are supported, with one script each:
 >
-> For evaluating an OpenAI-compatible HTTP endpoint (vLLM, llama.cpp,
-> Ollama, OpenRouter), use the HTTP API path in
-> [`TOOLKIT.md`](TOOLKIT.md).
+> | CLI | Script | Logged-in model |
+> |---|---|---|
+> | `claude -p` (Anthropic Claude Code) | `scripts/ikp_estimate_claude_cli.py` | claude-opus-4-7 / sonnet / haiku |
+> | `codex exec` (OpenAI Codex CLI) | `scripts/ikp_estimate_codex_cli.py` | gpt-5.5 (and other ChatGPT-backed models) |
+>
+> For evaluating an OpenAI-compatible HTTP endpoint (vLLM, llama.cpp, Ollama, OpenRouter),
+> use the HTTP API path in [`TOOLKIT.md`](TOOLKIT.md).
 
 ## When to use this path
 
-- You want to benchmark a Claude Code model (Opus / Sonnet / Haiku) on IKP.
-- You have an active `claude` CLI login but no Anthropic API key.
+- You want to benchmark a model exposed through a coding-agent subscription (Claude Code or ChatGPT Codex) without obtaining an API key for the underlying provider.
 - You don't want to (or can't) stand up an HTTP inference server.
+- Each probe spawns a fresh CLI subprocess so probes do not share context — this mirrors how vLLM serves stateless HTTP requests.
 
-The "model under test" is the Claude Code subscription itself. Each probe
-spawns a fresh `claude -p` subprocess, so probes do not share context —
-this mirrors how vLLM serves stateless HTTP requests.
+---
 
-## One-liner
+## Variant 1 — Claude Code (`claude -p`)
+
+### One-liner
 
 ```bash
 python scripts/ikp_estimate_claude_cli.py \
@@ -28,44 +32,24 @@ python scripts/ikp_estimate_claude_cli.py \
     --output results/claude-opus-4-7-claude-cli.json
 ```
 
-If you're behind a corporate proxy:
+Proxy env (`HTTP_PROXY` / `HTTPS_PROXY`) is inherited into every `claude -p` subprocess.
 
-```bash
-HTTP_PROXY=http://proxy.example.com:3128 \
-HTTPS_PROXY=http://proxy.example.com:3128 \
-python scripts/ikp_estimate_claude_cli.py --model claude-opus-4-7
-```
-
-Proxy env vars are forwarded into every `claude -p` subprocess.
-
-## CLI reference
-
-### Model
+### CLI reference
 
 | Flag | Default | Purpose |
 |---|---|---|
-| `--model, -m MODEL` | `claude-opus-4-7` | Subject model name (any alias accepted by `claude --model`). |
-| `--judge-model MODEL` | `claude-haiku-4-5` | Judge model (also called via `claude -p`). Haiku is independent from Opus and avoids self-judging bias. |
-
-### Evaluation
-
-| Flag | Default | Purpose |
-|---|---|---|
-| `--sample, -n N` | all 1400 | Stratified random sample: `N/7` probes per tier. |
+| `--model, -m MODEL` | `claude-opus-4-7` | Subject model (any alias `claude --model` accepts). |
+| `--judge-model MODEL` | `claude-haiku-4-5` | Judge model — Haiku avoids self-judging bias against Opus. |
+| `--sample, -n N` | all 1400 | Stratified random sample: `N/7` per tier. |
 | `--tiers TIERS` | all 7 | Comma-separated tiers, e.g. `T4,T5,T6,T7`. |
-| `--workers, -w N` | 8 | Parallel subprocess workers. 8 is a safe ceiling for the Power Users subscription; 4–16 are reasonable. |
+| `--workers, -w N` | 8 | Parallel subprocess workers. 4–16 reasonable on Power Users. |
 | `--sequential, -s` | off | Force `workers=1`. |
 | `--output, -o FILE` | — | Write per-probe results + tier stats to JSON. |
-| `--progress-file FILE` | — | Append every completed probe as one JSON line — useful for `tail -f` while a long run is in flight. |
+| `--progress-file FILE` | — | Append every completed probe as one JSON line. |
+| `--inspect` | off | Print per-probe details after scoring. |
+| `--inspect-probes` | off | Print probe set per tier and exit. |
 
-### Inspection
-
-| Flag | Purpose |
-|---|---|
-| `--inspect` | Print every probe with answer, gold, and verdict after scoring. |
-| `--inspect-probes` | Print the probe set per tier and exit (no CLI call). |
-
-## Under the hood
+### Under the hood
 
 Each probe is one call to:
 
@@ -80,15 +64,72 @@ claude -p \
     "<probe question>"
 ```
 
-- `--system-prompt` **replaces** Claude Code's default system prompt with the IKP-style factual prompt, matching how the HTTP path sends `SYSTEM_MSG`.
-- `--tools ""` and `--disable-slash-commands` disable tools/skills/plugins so the model answers purely from its parametric knowledge.
+- `--system-prompt` **replaces** Claude Code's default system prompt with the IKP factual prompt.
+- `--tools ""` and `--disable-slash-commands` keep the model on its parametric knowledge — no skills, no plugins, no tools.
 - `--no-session-persistence` avoids writing transcript state to disk.
-- `--output-format json` returns a single JSON object; the script extracts `result` as the model answer.
+- `--output-format json` returns a single JSON object; the script extracts `result` as the answer.
 
-The judge is the same wrapper with a different system prompt (`JUDGE_SYSTEM`) and the IKP rubric in the user message.
+### Caveats (Claude variant)
 
-## Caveats
+- ~1–2 s Node + Claude Code subprocess startup per probe. 8 workers ≈ 0.6 probes/s wall-clock (≈ 35–40 min for 1400 probes).
+- No `--thinking` flag — reasoning effort is whatever the Claude Code default for the alias is. To toggle thinking mode, edit `run_claude_cli`.
 
-- **Subprocess overhead is real.** Each `claude -p` invocation pays a Node + Claude Code startup tax of ~1–2 s on top of the API call. With 8 workers, expect ~0.6 probes/s wall-clock (≈ 35–40 min for the full 1400-probe set).
-- **Calibration curve still uses open-weight anchor models.** The 89-model open-weight calibration applies the same `log10(params_B) = 6.79 · acc − 0.899` mapping. For proprietary Claude models the "estimated parameters" number is best read as *"what an open-weight model would need to achieve this accuracy"* — not as an actual parameter count.
-- **No `--thinking` flag.** Reasoning effort is controlled by the model alias and Claude Code defaults; if you want a thinking-mode comparison, pass `--effort` through by editing `run_claude_cli` (or run two configs separately).
+---
+
+## Variant 2 — ChatGPT Codex (`codex exec`)
+
+### One-liner
+
+```bash
+python scripts/ikp_estimate_codex_cli.py \
+    --model gpt-5.5 --effort low \
+    --judge-model gpt-5.5 --judge-effort low \
+    --workers 8 \
+    --output results/gpt-5.5-codex.json
+```
+
+Proxy env is inherited. Codex is logged in via your ChatGPT account (`codex login status`).
+
+### CLI reference
+
+| Flag | Default | Purpose |
+|---|---|---|
+| `--model, -m MODEL` | `gpt-5.5` | Subject model (any alias `codex -m` accepts). |
+| `--effort LEVEL` | `xhigh` | `model_reasoning_effort`. **`minimal` is broken on gpt-5.5 (empty replies)**; `low` is the practical floor; `xhigh` is the "best version" but ~5× slower wall-clock. |
+| `--judge-model MODEL` | `gpt-5.5` | Judge model. |
+| `--judge-effort LEVEL` | `low` | Reasoning effort for the judge. `low` is fast and reliable. |
+| `--sample, -n N` | all 1400 | Stratified random sample. |
+| `--tiers TIERS` | all 7 | Comma-separated tier filter. |
+| `--workers, -w N` | 4 | Default lower than the Claude variant — codex calls are ~3× slower. 8 still works but rate-limit dips at sustained concurrency. |
+| `--sequential, -s` | off | Force `workers=1`. |
+| `--output, -o FILE` | — | JSON dump of full results. |
+| `--progress-file FILE` | — | JSONL stream of per-probe results. |
+
+### Under the hood
+
+Each probe is one call to:
+
+```bash
+codex exec \
+    --skip-git-repo-check --ephemeral \
+    --ignore-user-config --ignore-rules \
+    -C /tmp -s read-only --color never \
+    -o <tempfile> \
+    -c plugins={} \
+    -c service_tier="fast" \
+    -m gpt-5.5 -c model_reasoning_effort="low" \
+    "<IKP system prompt>\n\nQuestion: <probe>"
+```
+
+- The IKP system message is **prepended into the user prompt** because `codex exec` has no `--system-prompt` flag.
+- `-c plugins={}` is **load-bearing**: without it, codex auto-loads the bundled `superpowers` skill at the start of every turn via a shell command (`sed -n '1,200p' ~/.codex/superpowers/skills/.../SKILL.md`). That contaminates the benchmark and frequently corrupts the final answer with thinking traces like `"W גSomething? Wait final..."`.
+- `-c service_tier="fast"` cuts wall time ~30% on smoke tests.
+- `--ignore-user-config` + `-C /tmp` + `--ephemeral` ensure no `~/.codex/config.toml`, no local `AGENTS.md`, and no persisted session state leak into the run.
+- `-o <tempfile>` collects the final agent message cleanly — stdout `--json` events include thinking chatter we don't want.
+
+### Caveats (Codex variant)
+
+- **`minimal` effort is broken** on gpt-5.5: returns empty replies. The script defaults to `xhigh` per the "best version" intent but in practice you'll usually want `--effort low` for tractable wall time. `xhigh` ≈ 100s combined per probe under 8-way concurrency → ~5 h for 1400 probes; `low` ≈ 28s combined → ~2.5 h.
+- **Self-judging bias** — when both `--model` and `--judge-model` are the same, CORRECT verdicts skew up. Use a smaller OpenAI model as judge (e.g. `--judge-model gpt-5.5-mini` once available) or run the judge under the Claude variant for cross-model independence.
+- **Rate limiting** shows up as ~0.13 probes/s dips during long T6/T7 stretches at 8 workers. Recovers on its own. Drop to 4–6 workers if you see persistent throttling.
+- Same open-weight calibration caveat as the Claude variant — the estimated parameter count is a comparison-by-analogy onto the 89-model open-weight curve, not a true parameter readout.

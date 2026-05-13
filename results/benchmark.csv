@@ -17,3 +17,4 @@ Qwen3-32B,Qwen,Qwen/Qwen3-32B,32B,15B,30.7,31.9,97,97,21,0,0,0,0
 Qwen3-32B-FP8,Qwen,Qwen/Qwen3-32B-FP8,32B,45B,37.6,46.9,98,96,69,0,0,0,0
 Qwen3-32B-NVFP4,NVIDIA,nvidia/Qwen3-32B-NVFP4,32B,19B,32.1,43.5,93,92,40,0,0,0,0
 Claude-Opus-4.7-1M-ClaudeCode,Anthropic,anthropic/claude-opus-4-7,?,474B,52.6,56.5,100,95,84,59,25,6,0
+GPT-5.5-Codex-low,OpenAI,openai/gpt-5.5,?,4.6T,67.1,80.8,98,96,86,68,72,50,0
