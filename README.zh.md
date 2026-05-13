@@ -13,6 +13,7 @@ git clone --recurse-submodules https://github.com/host452b/ikp_study.git
 cd ikp_study
 pip install -r ikp/requirements.txt
 
+# ── 路径 A：HTTP API（vLLM / OpenRouter）──
 export OPENROUTER_API_KEY=sk-or-...
 
 # 完整估算（使用本仓库修改版脚本，支持 --tiers）
@@ -24,6 +25,10 @@ python scripts/ikp_estimate.py \
     --api-key  EMPTY \
     --model    my-local-model \
     --tiers    T4,T5,T6,T7
+
+# ── 路径 B：Agent（通过 claude -p，无需 Anthropic API Key）──
+python scripts/ikp_estimate_claude_cli.py \
+    --model claude-opus-4-7 --judge-model claude-haiku-4-5 -w 8
 ```
 
 也可直接使用上游脚本（不含 `--tiers`）：
@@ -36,10 +41,13 @@ python ikp/scripts/ikp_estimate.py --model openai/gpt-4.1
 
 | 文件 | 说明 |
 |---|---|
-| `scripts/ikp_estimate.py` | 修改版估算脚本，新增 `--tiers` 层级过滤参数 |
+| `scripts/ikp_estimate.py` | 修改版估算脚本（HTTP API 路径），新增 `--tiers` 层级过滤 |
+| `scripts/ikp_estimate_claude_cli.py` | Agent 路径估算脚本，通过 `claude -p` 子进程测评（无需 Anthropic API Key） |
 | `README.zh.md` | 本文件（中文说明） |
-| `TOOLKIT.md` | 增强版 CLI 参考（含 `--tiers` 文档及本地模型测试章节） |
-| `TOOLKIT.zh.md` | CLI 参考中文版 |
+| `TOOLKIT.md` | HTTP API 路径 CLI 参考（英文） |
+| `TOOLKIT.zh.md` | HTTP API 路径 CLI 参考（中文） |
+| `TOOLKIT_AGENT.md` | Agent 路径 CLI 参考（英文） |
+| `TOOLKIT_AGENT.zh.md` | Agent 路径 CLI 参考（中文） |
 | `REPRODUCTION.zh.md` | 论文复现指南中文版 |
 | `PROJECT_ANALYSIS.md` | 项目深度解析（英文） |
 | `PROJECT_ANALYSIS.zh.md` | 项目深度解析（中文） |
@@ -71,12 +79,15 @@ done
 
 ```
 ikp_study/
-├── ikp/                    ← 子模块 → 19PINE-AI/ikp（上游原版）
+├── ikp/                              ← 子模块 → 19PINE-AI/ikp（上游原版）
 ├── scripts/
-│   └── ikp_estimate.py     ← 修改版（新增 --tiers，路径指向 ikp/ 子模块）
-├── README.zh.md            ← 本文件
-├── TOOLKIT.md              ← 增强版 CLI 参考（英文）
-├── TOOLKIT.zh.md           ← CLI 参考（中文）
+│   ├── ikp_estimate.py               ← HTTP API 路径（vLLM/OpenRouter，新增 --tiers）
+│   └── ikp_estimate_claude_cli.py    ← Agent 路径（通过 claude -p）
+├── README.zh.md                      ← 本文件
+├── TOOLKIT.md                        ← HTTP API CLI 参考（英文）
+├── TOOLKIT.zh.md                     ← HTTP API CLI 参考（中文）
+├── TOOLKIT_AGENT.md                  ← Agent CLI 参考（英文）
+├── TOOLKIT_AGENT.zh.md               ← Agent CLI 参考（中文）
 ├── REPRODUCTION.zh.md      ← 论文复现指南（中文）
 ├── PROJECT_ANALYSIS.md     ← 项目深度解析（英文）
 ├── PROJECT_ANALYSIS.zh.md  ← 项目深度解析（中文）

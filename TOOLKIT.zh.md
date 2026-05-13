@@ -1,4 +1,11 @@
-# IKP 估算工具包（ikp_study 扩展版）
+# IKP 估算工具包 —— HTTP API 路径（vLLM / OpenRouter）
+
+> **两条路径，两份工具说明。** 本文档介绍 **HTTP API 路径**——
+> `scripts/ikp_estimate.py`，向任意 OpenAI 兼容端点（vLLM、llama.cpp、Ollama、OpenRouter…）发请求。
+>
+> 如果要在没有 Anthropic API Key 的情况下评估 Claude Code 模型，请走
+> **Agent 路径**（[`TOOLKIT_AGENT.zh.md`](TOOLKIT_AGENT.zh.md)）——
+> 它通过 shell 调用 `claude -p`，不走 HTTP。
 
 本文档介绍**本仓库**（`ikp_study/`）中的 `scripts/ikp_estimate.py`，
 该脚本在上游 [`ikp/scripts/ikp_estimate.py`](ikp/TOOLKIT.md) 基础上新增：

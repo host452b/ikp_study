@@ -1,4 +1,12 @@
-# IKP Estimation Toolkit (ikp_study overlay)
+# IKP Estimation Toolkit — HTTP API path (vLLM / OpenRouter)
+
+> **Two paths, two toolkits.** This file covers the **HTTP API path** —
+> `scripts/ikp_estimate.py`, which talks to any OpenAI-compatible endpoint
+> (vLLM, llama.cpp, Ollama, OpenRouter, …).
+>
+> For evaluating Claude Code models without an Anthropic API key, see the
+> **Agent path** in [`TOOLKIT_AGENT.md`](TOOLKIT_AGENT.md) — it shells out to
+> `claude -p` instead of HTTP.
 
 This document covers `scripts/ikp_estimate.py` in **this repo** (`ikp_study/`),
 which extends the upstream [`ikp/scripts/ikp_estimate.py`](ikp/TOOLKIT.md) with:
