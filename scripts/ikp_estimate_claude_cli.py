@@ -86,7 +86,7 @@ def format_params(b: float) -> str:
     return f"{b / 1000:.1f}T"
 
 
-def run_claude_cli(prompt: str, model: str, system_prompt: str) -> dict:
+def run_claude_cli(prompt: str, model: str, system_prompt: str, effort: str = "") -> dict:
     """Invoke `claude -p` once. Returns parsed JSON result dict or {}."""
     cmd = [
         CLI_PATH, "-p",
@@ -96,8 +96,10 @@ def run_claude_cli(prompt: str, model: str, system_prompt: str) -> dict:
         "--tools", "",
         "--system-prompt", system_prompt,
         "--output-format", "json",
-        prompt,
     ]
+    if effort:
+        cmd += ["--effort", effort]
+    cmd.append(prompt)
     for attempt in range(3):
         try:
             proc = subprocess.run(
@@ -135,10 +137,10 @@ def run_claude_cli(prompt: str, model: str, system_prompt: str) -> dict:
 
 
 # ── Model query ────────────────────────────────────────────────
-def make_query_fn(model: str):
+def make_query_fn(model: str, effort: str = ""):
     def query(question: str) -> tuple[str, float]:
         """Returns (response_text, cost_usd)."""
-        data = run_claude_cli(question, model, SYSTEM_MSG)
+        data = run_claude_cli(question, model, SYSTEM_MSG, effort)
         if not data:
             return "", 0.0
         cost = float(data.get("total_cost_usd", 0.0) or 0.0)
@@ -153,7 +155,7 @@ def make_query_fn(model: str):
 JUDGE_SYSTEM = "You are a strict factual judge. Reply with exactly one of: CORRECT, REFUSAL, or WRONG."
 
 
-def make_judge_fn(model: str):
+def make_judge_fn(model: str, effort: str = ""):
     def judge(question: str, gold: str, response: str) -> tuple[str, float]:
         if not response or not response.strip():
             return "REFUSAL", 0.0
@@ -178,7 +180,7 @@ Rules:
 {co_note}
 Reply one word: CORRECT, REFUSAL, or WRONG"""
 
-        data = run_claude_cli(prompt, model, JUDGE_SYSTEM)
+        data = run_claude_cli(prompt, model, JUDGE_SYSTEM, effort)
         cost = float((data or {}).get("total_cost_usd", 0.0) or 0.0)
         if not data:
             return "WRONG", cost
@@ -274,6 +276,8 @@ def main():
     model_group = parser.add_argument_group("Model")
     model_group.add_argument("--model", "-m", metavar="MODEL", default=DEFAULT_MODEL,
                              help=f"Model under test (default: {DEFAULT_MODEL})")
+    model_group.add_argument("--effort", metavar="LEVEL", default="",
+                             help="Subject reasoning effort: low/medium/high/xhigh/max (default: claude's own default for the alias)")
 
     eval_group = parser.add_argument_group("Evaluation")
     eval_group.add_argument("--sample", "-n", type=int, metavar="N",
@@ -292,6 +296,8 @@ def main():
     judge_group = parser.add_argument_group("Judge")
     judge_group.add_argument("--judge-model", metavar="MODEL", default=DEFAULT_JUDGE_MODEL,
                              help=f"Judge model (default: {DEFAULT_JUDGE_MODEL})")
+    judge_group.add_argument("--judge-effort", metavar="LEVEL", default="",
+                             help="Judge reasoning effort (default: claude's own default)")
 
     display_group = parser.add_argument_group("Display")
     display_group.add_argument("--inspect", action="store_true",
@@ -326,8 +332,9 @@ def main():
             sampled.extend(random.sample(tier_probes, min(per_tier, len(tier_probes))))
         probes = sampled
 
-    print(f"\n  Testing {args.model} via `claude -p`...")
-    query_fn = make_query_fn(args.model)
+    eff_label = f" effort={args.effort}" if args.effort else ""
+    print(f"\n  Testing {args.model}{eff_label} via `claude -p`...")
+    query_fn = make_query_fn(args.model, args.effort)
     test_resp, _test_cost = query_fn("What is the capital of France?")
     if not test_resp:
         print(f"  Error: claude CLI returned empty response. Check `claude auth status`.")
@@ -337,8 +344,9 @@ def main():
     else:
         print(f"  Model OK: {test_resp[:60]}")
 
-    print(f"  Judge:   {args.judge_model} (via claude -p)")
-    judge_fn = make_judge_fn(args.judge_model)
+    je_label = f" effort={args.judge_effort}" if args.judge_effort else ""
+    print(f"  Judge:   {args.judge_model}{je_label} (via claude -p)")
+    judge_fn = make_judge_fn(args.judge_model, args.judge_effort)
 
     total = len(probes)
     print(f"\n  Running {total} probes ({args.workers} workers)...\n")
